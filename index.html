@@ -7,10 +7,10 @@
   <meta name="robots" content="noindex, nofollow">
   <meta name="googlebot" content="noindex, nofollow">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.js"></script>
-  <link rel="stylesheet" type="text/css" href="//cdnjs.cloudflare.com/ajax/libs/bulma/0.6.2/css/bulma.min.css">
-  <link rel="stylesheet" type="text/css" href="//cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-  <script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/crypto-js/3.1.9-1/crypto-js.min.js"></script>
+  <script type="text/javascript" src="http://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.js"></script>
+  <link rel="stylesheet" type="text/css" href="http://cdnjs.cloudflare.com/ajax/libs/bulma/0.6.2/css/bulma.min.css">
+  <link rel="stylesheet" type="text/css" href="http://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <script type="text/javascript" src="http://cdnjs.cloudflare.com/ajax/libs/crypto-js/3.1.9-1/crypto-js.min.js"></script>
   
   <style>
     *, body, button, input, textarea, select {
@@ -82,11 +82,9 @@
     </div>
     <hr>
     <div class="container">
-      <p>The following sites have purchased a non-distributable copy of the previous version of bc.game’s source code, exempting them from the requirements of the AGPL:</p>
-      <p>https://hash.game</p>
-      <p>https://168eth.com</p>
-      <p>https://bc.game</p>
-      <p>https://bcgmtc.com</p>
+      <p>The following sites have introduced the principle of the algorithm:</p>
+      <p><a href="https://github.com/eosfunwin/eosFunHash/blob/master/README-EN.md" target="_blank">https://github.com/eosfunwin/eosFunHash/blob/master/README-EN.md</a></p>
+      <p><a href="https://github.com/eosfunwin/eosFunHash/blob/master/README.md" target="_blank">https://github.com/eosfunwin/eosFunHash/blob/master/README.md</a></p>
     </div>
     <hr>
     <div class="container">
@@ -98,7 +96,7 @@
       </div>
       <div class="field">
         <p class="control has-icons-left">
-          <input class="input" type="number" id="game_amount_input" min="1" max="100000" step="1" placeholder="Amount of games" value="10">
+          <input class="input" disabled="true" id="game_amount_input" min="1" max="100000" step="1" placeholder="Amount of games" value="">
           <span class="icon is-small is-left"><i class="fa fa-hashtag"></i></span>
         </p>
       </div>
@@ -109,107 +107,27 @@
       </div>
     </div>
     <hr>
-    <div class="container">
-      <table class="table is-striped is-fullwidth is-hoverable is-narrow" style="display:table">
-        <thead>
-          <tr>
-            <th><b>Game's hash</b></th>
-            <th><b>Bust</b></th>
-          </tr>
-        </thead>
-        <tbody id="game_verify_table"></tbody>
-      </table>
-    </div>
   </section>
     <script type="text/javascript">
-      var isVerifying = false;
+      var hash = getParam('hash');
+      $('#game_hash_input').val(hash)
       $('#game_verify_submit').on('click', () => {
-        if (isVerifying) return;
-        isVerifying = true;
-        $('#game_hash_input').parent().addClass('is-loading');
-        $('#game_verify_submit').addClass('is-loading');
-        $('#game_hash_input, #game_amount_input, #game_verify_submit').attr('disabled', 'disabled');
-        $('#game_verify_table').html('');
-        let prevHash = null;
-        for (let i = 0; i < $('#game_amount_input').val(); i++) {
-          let hash = String(prevHash ? CryptoJS.SHA256(String(prevHash)) : $('#game_hash_input').val());
-          let bust = gameResult(hash);
-          setTimeout(function() {
-            addTableRow(hash, bust, i)
-          }, i * 1);
-          prevHash = hash;
-        }
+        var value = $("#game_hash_input").val();
+        $.get("https://eos8.win:9099/crash/getCrashGameResult?hash="+value,function(res){
+          $('#game_amount_input').val((res.data/100).toFixed(2)+'x');
+        })
+        
       });
-      $('#game_amount_input').on('keyup', () => {
-        if ($('#game_amount_input').val() >= 10000) {
-          if ($('#game_verify_warning').length) return;
-          $('#game_verify_submit').parent().append(
-            $('<span/>').attr({
-              'id': 'game_verify_warning',
-              'class': 'tag is-warning'
-            }).text("Verifying a huge amount of games may consume more ressources from your CPU")
-          );
-        } else {
-          if ($('#game_verify_warning').length) {
-            $('#game_verify_warning').remove();
-          }
-        }
-      });
-      const addTableRow = (hash, bust, index) => {
-        $('<tr/>').attr({
-          'class': index === 0 ? 'is-first' : null
-        }).append(
-          $('<td/>').text(hash)
-        ).append(
-          $('<td/>').text(bust).attr({
-            'class': bust === 1.98 ? 'is-at-median' : bust > 1.98 ? 'is-over-median' : 'is-under-median'
-          })
-        ).appendToWithIndex($('#game_verify_table'), index);
-        if (index >= $('#game_amount_input').val() - 1) {
-          $('#game_hash_input').parent().removeClass('is-loading');
-          $('#game_verify_submit').removeClass('is-loading');
-          $('#game_hash_input, #game_amount_input, #game_verify_submit').removeAttr("disabled");
-          isVerifying = false;
-        }
-      };
-      const gameResult = (seed) => {
-        const nBits = 52; // number of most significant bits to use
-        // 1. r = 52 most significant bits
-        seed = seed.slice(0, nBits / 4);
-        const r = parseInt(seed, 16);
-        // 2. X = r / 2^52
-        let X = r / Math.pow(2, nBits); // uniformly distributed in [0; 1)
-        // 3. X = 99 / (1-X)
-        X = 99 / (1 - X);
-        // 4. return max(trunc(X), 100)
-        const result = Math.floor(X);
-        return Math.max(1, result / 100);
-      };
-      $.fn.appendToWithIndex = function(to, index) {
-        if (!to instanceof jQuery) {
-          to = $(to);
-        };
-        if (index === 0) {
-          $(this).prependTo(to)
-        } else {
-          $(this).insertAfter(to.children().eq(index - 1));
-        }
-      };
-      var hash_url = window.location.search
-      if ((/\?hash=/).test(hash_url)) {
-        var hash = hash_url.replace(/\?hash=/, '')
-        $('#game_hash_input').val(hash)
-        $('#game_verify_submit').click()
-      }
-    </script>
-    <script>
-      // tell the embed parent frame the height of the content
-      if (window.parent && window.parent.parent) {
-        window.parent.parent.postMessage(["resultsFrame", {
-          height: document.body.getBoundingClientRect().height,
-          slug: "nwu2ffkv"
-        }], "*")
-      }
+
+      function getParam(paramName) { 
+          paramValue = "", isFound = !1; 
+          if (this.location.search.indexOf("?") == 0 && this.location.search.indexOf("=") > 1) { 
+              arrSource = unescape(this.location.search).substring(1, this.location.search.length).split("&"), i = 0; 
+              while (i < arrSource.length && !isFound) arrSource[i].indexOf("=") > 0 && arrSource[i].split("=")[0].toLowerCase() == paramName.toLowerCase() && (paramValue = arrSource[i].split("=")[1], isFound = !0), i++ 
+          } 
+          return paramValue == "" && (paramValue = null), paramValue 
+      } 
+      
     </script>
 </body>
 
